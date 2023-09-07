@@ -23,8 +23,8 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 CRGB leds[NUM_LEDS];
-LightMode lightMode1(23, 0);  
-LightMode lightMode2(0, 7);
+LightMode lightMode1(0, 1);  
+LightMode lightMode2(1, 7);
 // LightMode lightMode1(11, 12);  
 
 /*FUNCTIONS DECLARATION*/
@@ -66,15 +66,15 @@ void loop() {
 
     int map_lux_to_rgb_val = map(lux_prepared, MINIMAL_DAYLIGHT_BRIGHTNESS, 0, 1, 255);
     for (int i = 0; i < NUM_LEDS; i++) {
-      leds[i] = CRGB(255, random(50, 111), 1);
+      // leds[i] = CRGB(255, random(50, 111), 1);
+      leds[i] = CRGB(255, 10, random(50, 200));
     }
-    if(now.hour() >= lightMode1.startTime && now.hour() != lightMode1.endTime) {
-      if(now.hour() >= lightMode1.startTime && now.hour() != lightMode1.endTime) {
+    if(now.hour() >= lightMode1.startTime && now.hour() <= lightMode1.endTime) {
+      if(now.hour() >= lightMode1.startTime && now.hour() < lightMode1.endTime) {
         Serial.println(now.minute() * 60 + now.second());
         int seconds_to_brightnes = map(now.minute() * 60 + now.second(), 0, 3600, 255, 0);
         Serial.println(seconds_to_brightnes);
         FastLED.setBrightness(seconds_to_brightnes);
-        Serial.println(seconds_to_brightnes);
       }
       if(now.hour() >= lightMode2.startTime && now.hour() <= lightMode2.endTime) {
         clear();
@@ -92,9 +92,7 @@ void loop() {
   Serial.print(now.minute());
   Serial.print(":");
   Serial.println(now.second());
-
-
-  delay(2000);
+  delay(100);
 }
 void clear() {
   Serial.println("clean up");
