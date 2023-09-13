@@ -23,13 +23,16 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 CRGB leds[NUM_LEDS];
-LightMode lightMode1(0, 1);  
-LightMode lightMode2(1, 7);
-// LightMode lightMode1(11, 12);  
-
+LightMode lingtMorningTime(7, 8);
+LightMode lingtModeDayTime(8, 16);  
+LightMode lingtModeEvening(16, 11);
+LightMode lingtModePrepareForSleepTime(23, 0);
+LightMode lingtModeNight(0, 7);
 /*FUNCTIONS DECLARATION*/
 void initWiFi();
 void clear();
+bool isInTimeShift(int hour, LightMode mode);
+void morningModeEffect();
 
 void setup() {
   Serial.begin(9600);
@@ -41,8 +44,6 @@ void setup() {
     while (1);
   }
   rtc.adjust(DateTime(__DATE__, __TIME__));
-  // Serial.print("RRSI: ");
-  // Serial.println(WiFi.RSSI());
 }
 
 void initWiFi() {
@@ -62,43 +63,57 @@ void loop() {
   DateTime now = rtc.now();
   float lux_original = lightMeter.readLightLevel();
   int lux_prepared = (int)round(lux_original);
-  if(lux_prepared < MINIMAL_DAYLIGHT_BRIGHTNESS) {
-
-    int map_lux_to_rgb_val = map(lux_prepared, MINIMAL_DAYLIGHT_BRIGHTNESS, 0, 1, 255);
-    for (int i = 0; i < NUM_LEDS; i++) {
-      // leds[i] = CRGB(255, random(50, 111), 1);
-      leds[i] = CRGB(255, 10, random(50, 200));
-    }
-    if(now.hour() >= lightMode1.startTime && now.hour() <= lightMode1.endTime) {
-      if(now.hour() >= lightMode1.startTime && now.hour() < lightMode1.endTime) {
-        Serial.println(now.minute() * 60 + now.second());
-        int seconds_to_brightnes = map(now.minute() * 60 + now.second(), 0, 3600, 255, 0);
-        Serial.println(seconds_to_brightnes);
-        FastLED.setBrightness(seconds_to_brightnes);
-      }
-      if(now.hour() >= lightMode2.startTime && now.hour() <= lightMode2.endTime) {
-        clear();
-      }
-    } else  {
-      FastLED.setBrightness(map_lux_to_rgb_val);
-    }
-    FastLED.show();
-  } else {
-    clear();
+  if(isInTimeShift(now.hour(), lingtMorningTime)) {
+    morningModeEffect();
   }
+  
 
   Serial.print(now.hour());
   Serial.print(":");
   Serial.print(now.minute());
   Serial.print(":");
   Serial.println(now.second());
-  delay(100);
 }
+
+bool isInTimeShift(int hour, LightMode mode) {
+    if (mode.startTime <= mode.endTime) {
+        return (hour >= mode.startTime && hour < mode.endTime);
+    } else {
+        return (hour >= mode.startTime || hour < mode.endTime);
+    }
+}
+
 void clear() {
   Serial.println("clean up");
   for (int i = 0; i < NUM_LEDS; i++) {
     leds[i] = CRGB::Black;
   }
    FastLED.show();
+}
+
+void morningModeEffect() {
+  static uint8_t brightness = 255;
+  static bool increasing = false;
+
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CHSV(random(256), 255, 255); 
+  }
+
+  if (increasing) {
+    brightness += 30;
+    if (brightness >= 255) {
+      brightness = 255;
+      increasing = false;
+    }
+  } else {
+    brightness -= 30;
+    if (brightness == 0) {
+      increasing = true;
+    }
+  }
+
+  FastLED.setBrightness(brightness);
+  FastLED.show();
+  delay(10);
 }
 
