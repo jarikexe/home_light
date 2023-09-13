@@ -24,7 +24,7 @@ const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 CRGB leds[NUM_LEDS];
 LightMode lingtMorningTime(7, 8);
-LightMode lingtModeDayTime(23, 7);  
+LightMode lingtModeDayTime(8, 16);  
 LightMode lingtModeEvening(16, 11);
 LightMode lingtModePrepareForSleepTime(23, 0);
 LightMode lingtModeNight(0, 7);
