@@ -24,7 +24,7 @@ const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 CRGB leds[NUM_LEDS];
 LightMode lingtMorningTime(7, 8);
-LightMode lingtModeDayTime(8, 16);  
+LightMode lingtModeDayTime(23, 7);  
 LightMode lingtModeEvening(16, 11);
 LightMode lingtModePrepareForSleepTime(23, 0);
 LightMode lingtModeNight(0, 7);
@@ -33,6 +33,7 @@ void initWiFi();
 void clear();
 bool isInTimeShift(int hour, LightMode mode);
 void morningModeEffect();
+void dayModeEffect();
 
 void setup() {
   Serial.begin(9600);
@@ -66,7 +67,10 @@ void loop() {
   if(isInTimeShift(now.hour(), lingtMorningTime)) {
     morningModeEffect();
   }
-  
+  else if(isInTimeShift(now.hour(), lingtModeDayTime)) {
+    dayModeEffect();
+  }
+
 
   Serial.print(now.hour());
   Serial.print(":");
@@ -89,6 +93,28 @@ void clear() {
     leds[i] = CRGB::Black;
   }
    FastLED.show();
+}
+
+void dayModeEffect() {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CRGB(99, 255, 164);
+  }
+    int i = 50;
+    bool mode = true;
+  while(true) {
+    if(mode && i < 255){
+      i++;
+    } else {
+      i--;
+    }
+    if(i == 255 || i == 50) {
+      mode = !mode;
+    }  
+    delay(10);
+    Serial.println(i);
+    FastLED.setBrightness(i);
+    FastLED.show();
+  }
 }
 
 void morningModeEffect() {
