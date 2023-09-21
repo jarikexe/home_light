@@ -6,10 +6,8 @@
 #include "RTClib.h"
 #include "LightMode.cpp"
 
-
 BH1750 lightMeter(0x23);
 RTC_DS3231 rtc;
-
 
 /*PIN OUT CONFIG*/
 #define LED_PIN 18
@@ -23,17 +21,26 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 CRGB leds[NUM_LEDS];
+
+/*LIGHT MODES DECLARATION*/
 LightMode lingtMorningTime(7, 8);
-LightMode lingtModeDayTime(8, 16);  
-LightMode lingtModeEvening(16, 11);
-LightMode lingtModePrepareForSleepTime(23, 0);
+LightMode lingtModeDayTime(8, 18);  
+LightMode lingtModeEvening(18, 0);
+LightMode lingtModePrepareForSleepTime(0, 1);
 LightMode lingtModeNight(0, 7);
+
 /*FUNCTIONS DECLARATION*/
 void initWiFi();
 void clear();
 bool isInTimeShift(int hour, LightMode mode);
 void morningModeEffect();
 void dayModeEffect();
+void prepareForSleepEffect(DateTime now);
+void evningEffect();
+
+CRGBPalette16 currentPalette = PartyColors_p;
+CRGBPalette16 targetPalette = PartyColors_p;
+TBlendType    currentBlending = LINEARBLEND;        
 
 void setup() {
   Serial.begin(9600);
@@ -60,7 +67,6 @@ void initWiFi() {
 }
 
 void loop() {
-  
   DateTime now = rtc.now();
   float lux_original = lightMeter.readLightLevel();
   int lux_prepared = (int)round(lux_original);
@@ -70,13 +76,17 @@ void loop() {
   else if(isInTimeShift(now.hour(), lingtModeDayTime)) {
     dayModeEffect();
   }
+   else if(isInTimeShift(now.hour(), lingtModeEvening)) {
+    evningEffect();
+  }
 
+   else if(isInTimeShift(now.hour(), lingtModeNight)) {
+    clear();
+  }
 
-  Serial.print(now.hour());
-  Serial.print(":");
-  Serial.print(now.minute());
-  Serial.print(":");
-  Serial.println(now.second());
+  else if(isInTimeShift(now.hour(), lingtModePrepareForSleepTime)) {
+    prepareForSleepEffect(now);
+  }
 }
 
 bool isInTimeShift(int hour, LightMode mode) {
@@ -95,26 +105,60 @@ void clear() {
    FastLED.show();
 }
 
-void dayModeEffect() {
-  for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = CRGB(99, 255, 164);
-  }
-    int i = 50;
-    bool mode = true;
-  while(true) {
-    if(mode && i < 255){
-      i++;
-    } else {
-      i--;
+void evningEffect() {
+  float lux_original = lightMeter.readLightLevel();
+  int lux_prepared = (int)round(lux_original);
+
+  if(lux_prepared < MINIMAL_DAYLIGHT_BRIGHTNESS) {
+
+    int map_lux_to_rgb_val = map(lux_prepared, MINIMAL_DAYLIGHT_BRIGHTNESS, 0, 1, 255);
+    Serial.println(map_lux_to_rgb_val);
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds[i] = CRGB(255, random(50, 111), 1);
     }
-    if(i == 255 || i == 50) {
-      mode = !mode;
-    }  
-    delay(10);
-    Serial.println(i);
-    FastLED.setBrightness(i);
+
+
+    Serial.println(map_lux_to_rgb_val);
+    FastLED.setBrightness(map_lux_to_rgb_val);
     FastLED.show();
+    delay(1000);
+  } else {
+    clear();
   }
+}
+
+void prepareForSleepEffect(DateTime now) {
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds[i] = CRGB(255, random(100, 160), 50);
+    }
+
+    Serial.println(now.minute() * 60 + now.second());
+    int seconds_to_brightnes = map(now.minute() * 60 + now.second(), 0, 3600, 255, 0);
+    Serial.println(seconds_to_brightnes);
+    FastLED.setBrightness(seconds_to_brightnes);
+    FastLED.show();
+    delay(500);
+}
+
+void dayModeEffect() {
+ #define scale 30
+  for(int i = 0; i < NUM_LEDS; i++) {
+    uint8_t index = inoise8(i*scale, millis()/10+i*scale);
+    leds[i] = ColorFromPalette(currentPalette, index, 255, LINEARBLEND);
+  }
+ 
+  EVERY_N_MILLIS(10) {
+    nblendPaletteTowardPalette(currentPalette, targetPalette, 48);
+  }
+ 
+  EVERY_N_SECONDS(5) {                                                      
+    uint8_t baseC=random8();
+    targetPalette = CRGBPalette16(CHSV(baseC+random8(32), 255, random8(128,255)),
+                                  CHSV(baseC+random8(64), 255, random8(128,255)),
+                                  CHSV(baseC+random8(96), 192, random8(128,255)),
+                                  CHSV(baseC+random8(16), 255, random8(128,255)));
+  }
+  LEDS.show();             
 }
 
 void morningModeEffect() {
