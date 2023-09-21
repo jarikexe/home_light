@@ -5,6 +5,7 @@
 #include "time.h"
 #include "RTClib.h"
 #include "LightMode.cpp"
+#include <Keypad.h>
 
 BH1750 lightMeter(0x23);
 RTC_DS3231 rtc;
@@ -37,10 +38,23 @@ void morningModeEffect();
 void dayModeEffect();
 void prepareForSleepEffect(DateTime now);
 void evningEffect();
+void romanticMoodEffect();
 
 CRGBPalette16 currentPalette = PartyColors_p;
 CRGBPalette16 targetPalette = PartyColors_p;
 TBlendType    currentBlending = LINEARBLEND;        
+
+const byte ROWS = 1;
+const byte COLS = 4;
+int customMode = 0;
+
+char keys[ROWS][COLS] = {
+{1,2,3,4},
+};
+byte rowPins[ROWS] = {23};
+byte colPins[COLS] = {2, 4, 5, 19};
+
+Keypad kpd = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
 void setup() {
   Serial.begin(9600);
@@ -67,26 +81,53 @@ void initWiFi() {
 }
 
 void loop() {
+
+  int key = kpd.getKey();
+  if(key) {
+    Serial.print(key);
+    customMode = key;
+    dayModeEffect();
+  }
+
   DateTime now = rtc.now();
   float lux_original = lightMeter.readLightLevel();
   int lux_prepared = (int)round(lux_original);
-  if(isInTimeShift(now.hour(), lingtMorningTime)) {
-    morningModeEffect();
-  }
-  else if(isInTimeShift(now.hour(), lingtModeDayTime)) {
-    dayModeEffect();
-  }
-   else if(isInTimeShift(now.hour(), lingtModeEvening)) {
-    evningEffect();
+  if(customMode == 0) {
+    if(isInTimeShift(now.hour(), lingtMorningTime)) {
+        morningModeEffect();
+      }
+      else if(isInTimeShift(now.hour(), lingtModeDayTime)) {
+        dayModeEffect();
+      }
+      else if(isInTimeShift(now.hour(), lingtModeEvening)) {
+        evningEffect();
+      }
+
+      else if(isInTimeShift(now.hour(), lingtModeNight)) {
+        clear();
+      }
+      else if(isInTimeShift(now.hour(), lingtModePrepareForSleepTime)) {
+        prepareForSleepEffect(now);
+      }
+  } else {
+    switch (customMode)
+    {
+    case 1:
+      dayModeEffect();
+      break;
+    case 2:
+      romanticMoodEffect();
+      break;
+    case 3:
+      morningModeEffect();
+    case 4:
+      clear();  
+      break;  
+    default:
+      customMode = 0;
+    }
   }
 
-   else if(isInTimeShift(now.hour(), lingtModeNight)) {
-    clear();
-  }
-
-  else if(isInTimeShift(now.hour(), lingtModePrepareForSleepTime)) {
-    prepareForSleepEffect(now);
-  }
 }
 
 bool isInTimeShift(int hour, LightMode mode) {
@@ -112,13 +153,11 @@ void evningEffect() {
   if(lux_prepared < MINIMAL_DAYLIGHT_BRIGHTNESS) {
 
     int map_lux_to_rgb_val = map(lux_prepared, MINIMAL_DAYLIGHT_BRIGHTNESS, 0, 1, 255);
-    Serial.println(map_lux_to_rgb_val);
     for (int i = 0; i < NUM_LEDS; i++) {
       leds[i] = CRGB(255, random(50, 111), 1);
     }
 
 
-    Serial.println(map_lux_to_rgb_val);
     FastLED.setBrightness(map_lux_to_rgb_val);
     FastLED.show();
     delay(1000);
@@ -132,7 +171,6 @@ void prepareForSleepEffect(DateTime now) {
       leds[i] = CRGB(255, random(100, 160), 50);
     }
 
-    Serial.println(now.minute() * 60 + now.second());
     int seconds_to_brightnes = map(now.minute() * 60 + now.second(), 0, 3600, 255, 0);
     Serial.println(seconds_to_brightnes);
     FastLED.setBrightness(seconds_to_brightnes);
@@ -187,3 +225,32 @@ void morningModeEffect() {
   delay(10);
 }
 
+void romanticMoodEffect() {
+ static int ripplePos[5] = {0};
+  static int rippleSize[5] = {0};
+  
+  // Move and expand each ripple
+  for (int i = 0; i < 5; i++) {
+    ripplePos[i]++;
+    rippleSize[i]++;
+    
+
+    // Create the ripple with red and pink colors
+    for (int j = 0; j < NUM_LEDS; j++) {
+      int distance = abs(j - ripplePos[i]);
+      if (distance <= rippleSize[i]) {
+        // Vary hue to simulate a rainbow effect (red to pink)
+        int hue = map(distance, 0, rippleSize[i], 0, 128);
+        leds[j] = CHSV(hue, 255, 255);
+      }
+    }
+    
+    // Fade out the ripple
+    if (rippleSize[i] >= NUM_LEDS / 2) {
+      rippleSize[i] = 0;
+    }
+  }
+  
+  FastLED.show();
+  delay(30);
+}
