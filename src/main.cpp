@@ -6,7 +6,6 @@
 #include "RTClib.h"
 #include "LightMode.cpp"
 
-BH1750 lightMeter(0x23);
 RTC_DS3231 rtc;
 
 /*PIN OUT CONFIG*/
@@ -21,6 +20,12 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 CRGB leds[NUM_LEDS];
+
+
+const int maxCount = 255;
+const int minCount = 50;
+int count = minCount;
+bool increasing = true;
 
 /*LIGHT MODES DECLARATION*/
 LightMode lingtMorningTime(7, 8);
@@ -45,7 +50,6 @@ TBlendType    currentBlending = LINEARBLEND;
 void setup() {
   Serial.begin(9600);
   Wire.begin();
-  lightMeter.begin();
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
   if (! rtc.begin()) {
     Serial.println("Could not find RTC! Check circuit.");
@@ -68,8 +72,6 @@ void initWiFi() {
 
 void loop() {
   DateTime now = rtc.now();
-  float lux_original = lightMeter.readLightLevel();
-  int lux_prepared = (int)round(lux_original);
   if(isInTimeShift(now.hour(), lingtMorningTime)) {
     morningModeEffect();
   }
@@ -106,25 +108,25 @@ void clear() {
 }
 
 void evningEffect() {
-  float lux_original = lightMeter.readLightLevel();
-  int lux_prepared = (int)round(lux_original);
-
-  if(lux_prepared < MINIMAL_DAYLIGHT_BRIGHTNESS) {
-
-    int map_lux_to_rgb_val = map(lux_prepared, MINIMAL_DAYLIGHT_BRIGHTNESS, 0, 1, 255);
-    Serial.println(map_lux_to_rgb_val);
     for (int i = 0; i < NUM_LEDS; i++) {
-      leds[i] = CRGB(255, random(50, 111), 1);
+      leds[i] = CRGB(255, 70, 0);
     }
 
+    if (increasing) {
+      count++;
+      if (count == maxCount) {
+        increasing = false;
+      }
+    } else {
+      count--;
+      if (count == minCount) {
+        increasing = true;
+      }
+    }
 
-    Serial.println(map_lux_to_rgb_val);
-    FastLED.setBrightness(map_lux_to_rgb_val);
+    FastLED.setBrightness(count);
     FastLED.show();
-    delay(1000);
-  } else {
-    clear();
-  }
+    delay(30);
 }
 
 void prepareForSleepEffect(DateTime now) {
